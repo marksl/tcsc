@@ -8,5 +8,15 @@
         {
             _errorReporter = errorReporter;
         }
+
+        public Linker GetLinker(Program program)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public bool HasErrors()
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

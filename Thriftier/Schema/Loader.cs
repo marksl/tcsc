@@ -100,16 +100,18 @@ namespace Thriftier.Schema
 
             foreach (ThriftFileElement fileElement in loadedFiles.Values)
             {
-                File file = new File(fileElement.Location.Base, fileElement.Location.Path);
+                var filePath = Path.Combine(fileElement.Location.Base, fileElement.Location.Path);
+                FileInfo file = new FileInfo(filePath);
 
-                if (!file.exists())
-                    throw new AssertionError(
+                if (!file.Exists)
+                    throw new Exception(
                         "We have a parsed ThriftFileElement with a non-existing location");
 
-                if (!file.isAbsolute()) throw new AssertionError("We have a non-canonical path");
+                //if (!file.isAbsolute()) throw new AssertionError("We have a non-canonical path");
 
                 Program program = new Program(fileElement);
-                loadedPrograms.put(file.getCanonicalPath(), program);
+
+                loadedPrograms.Add(file.FullName, program);
             }
 
             // Link included programs together
@@ -137,15 +139,15 @@ namespace Thriftier.Schema
             if (file != null)
             {
 // Resolve symlinks, redundant '.' and '..' segments.
-                file = file.getCanonicalFile();
+                //file = new FileInfo(file.getCanonicalFile());
 
-                if (loadedFiles.containsKey(file.getAbsolutePath()))
+                if (loadedFiles.ContainsKey(file.FullName))
                 {
                     return;
                 }
 
-                dir = file.getParentFile();
-                element = loadSingleFile(file.getParentFile(), file.getName());
+                dir = file.Directory;
+                element = loadSingleFile(file.Directory, file.FullName);
             }
 
             if (element == null)
@@ -154,7 +156,7 @@ namespace Thriftier.Schema
                     "Failed to locate " + path + " in " + includePaths);
             }
 
-            loadedFiles.Add(file.getAbsolutePath(), element);
+            loadedFiles.Add(file.FullName, element);
 
 
             ImmutableList<IncludeElement> includes = element.includes();
@@ -179,36 +181,44 @@ namespace Thriftier.Schema
             {
                 foreach (Program program in loadedPrograms.Values)
                 {
-                    Linker linker = environment.getLinker(program);
-                    linker.link();
+                    Linker linker = environment.GetLinker(program);
+                    linker.Link();
                 }
 
-                if (environment.hasErrors())
+                if (environment.HasErrors())
                 {
                     throw new IllegalStateException("Linking failed");
                 }
             }
         }
 
-        private ThriftFileElement loadSingleFile(File base, String path) throws IOException {
-File file = new File(base, path).getAbsoluteFile();
-if (!file.exists()) {
-return null;
-}
+        private ThriftFileElement loadSingleFile(DirectoryInfo base1, String path)
+        {
+            string fileName = Path.Combine(base1.FullName, path);
+            FileInfo file = new FileInfo(fileName);
+            if (!file.Exists)
+            {
+                return null;
+            }
 
-Source source = Okio.source(file);
-try {
-Location location = Location.get(base.toString(), path);
-String data = Okio.buffer(source).readUtf8();
-return ThriftParser.parse(location, data, errorReporter);
-} catch (IOException e) {
-throw new IOException("Failed to load " + path + " from " + base, e);
-} finally {
-Closeables.close(source, true);
-}
-}
+            Source source = Okio.source(file);
+            try
+            {
+                Location location = Location.Get(base1.FullName, path);
+                String data = Okio.buffer(source).readUtf8();
+                return ThriftParser.parse(location, data, errorReporter);
+            }
+            catch (IOException e)
+            {
+                throw new IOException("Failed to load " + path + " from " + base, e);
+            }
+            finally
+            {
+                Closeables.close(source, true);
+            }
+        }
 
-Program resolveIncludedProgram(Location currentPath, String importPath) throws IOException {
+        Program resolveIncludedProgram(Location currentPath, String importPath) throws IOException {
 File resolved = findFirstExisting(importPath, currentPath);
 if (resolved == null) {
 throw new AssertionError("Included thrift file not found: " + importPath);
