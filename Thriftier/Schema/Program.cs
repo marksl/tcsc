@@ -1,4 +1,5 @@
-﻿using Thriftier.Schema.Parser;
+﻿using System.Collections.Generic;
+using Thriftier.Schema.Parser;
 
 namespace Thriftier.Schema
 {
@@ -9,5 +10,9 @@ namespace Thriftier.Schema
 
         }
 
+        public void LoadIncludedPrograms(Loader loader, HashSet<Program> visited)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

@@ -101,15 +101,15 @@ namespace ThriftierCompiler
                 loader.addThriftFile(thriftFile);
             }
 
-            for (String dir : searchPath) {
-                loader.addIncludePath(new File(dir));
+            foreach (String dir in searchPath) {
+                loader.addIncludePath(dir);
             }
 
             Schema schema;
             try {
                 schema = loader.Load();
             } catch (LoadFailedException e) {
-                foreach (string report in e.errorReporter().formattedReports()) {
+                foreach (string report in e.ErrorReporter.formattedReports()) {
                     Console.Out.WriteLine(report);
                 }
 

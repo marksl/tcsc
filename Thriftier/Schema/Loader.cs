@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Linq;
 using Thriftier.Schema.Parser;
+
 
 namespace Thriftier.Schema
 {
@@ -36,9 +38,14 @@ namespace Thriftier.Schema
          */
         private List<string> includePaths = new List<string>();
 
-        private ErrorReporter errorReporter = new ErrorReporter();
+        private readonly ErrorReporter errorReporter;
+        private readonly LinkEnvironment environment;
 
-        private LinkEnvironment environment = new LinkEnvironment(errorReporter);
+        public Loader()
+        {
+            errorReporter = new ErrorReporter();
+            environment = new LinkEnvironment(errorReporter);
+        }
 
         private Dictionary<String, Program> loadedPrograms;
 
@@ -65,7 +72,7 @@ namespace Thriftier.Schema
             {
                 loadFromDisk();
                 linkPrograms();
-                return new Schema(loadedPrograms.values());
+                return new Schema(loadedPrograms.Values);
             }
             catch (Exception e)
             {
@@ -118,7 +125,7 @@ namespace Thriftier.Schema
             HashSet<Program> visited = new HashSet<Program>();
             foreach (Program program in loadedPrograms.Values)
             {
-                program.loadIncludedPrograms(this, visited);
+                program.LoadIncludedPrograms(this, visited);
             }
         }
 
