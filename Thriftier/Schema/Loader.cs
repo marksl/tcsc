@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Linq;
+using System.Text;
 using Thriftier.Schema.Parser;
 
 
@@ -49,18 +50,20 @@ namespace Thriftier.Schema
 
         private Dictionary<String, Program> loadedPrograms;
 
-        public Loader addThriftFile(String file) {
-            if(file == null) throw new ArgumentNullException(nameof(file));
+        public Loader addThriftFile(String file)
+        {
+            if (file == null) throw new ArgumentNullException(nameof(file));
 
             thriftFiles.Add(file);
             return this;
         }
 
-        public Loader addIncludePath(string path) {
+        public Loader addIncludePath(string path)
+        {
             if (string.IsNullOrWhiteSpace(path))
                 throw new ArgumentNullException(nameof(path));
             if (!Directory.Exists(path))
-             throw new ArgumentException("path must be a directory", nameof(path));
+                throw new ArgumentException("path must be a directory", nameof(path));
 
             includePaths.Add(path);
             return this;
@@ -166,19 +169,18 @@ namespace Thriftier.Schema
             loadedFiles.Add(file.FullName, element);
 
 
-            ImmutableList<IncludeElement> includes = element.includes();
-            if (includes.size() > 0)
+            ImmutableList<IncludeElement> includes = element.Includes;
+            if (includes.Count > 0)
             {
-                includePaths.addFirst(dir);
-                for (IncludeElement include :
-                includes)
+                includePaths.Insert(0, dir.FullName);
+                foreach (IncludeElement include in includes)
                 {
-                    if (!include.isCpp())
+                    if (!include.IsCpp)
                     {
-                        loadFileRecursively(include.path(), loadedFiles);
+                        loadFileRecursively(include.Path, loadedFiles);
                     }
                 }
-                includePaths.removeFirst();
+                includePaths.RemoveAt(0);
             }
         }
 
@@ -194,7 +196,7 @@ namespace Thriftier.Schema
 
                 if (environment.HasErrors())
                 {
-                    throw new IllegalStateException("Linking failed");
+                    throw new Exception("Linking failed");
                 }
             }
         }
@@ -208,34 +210,38 @@ namespace Thriftier.Schema
                 return null;
             }
 
-            Source source = Okio.source(file);
+
             try
             {
                 Location location = Location.Get(base1.FullName, path);
-                String data = Okio.buffer(source).readUtf8();
-                return ThriftParser.parse(location, data, errorReporter);
+                string data = File.ReadAllText(file.FullName, Encoding.UTF8);
+
+                return ThriftParser.Parse(location, data, errorReporter);
             }
             catch (IOException e)
             {
-                throw new IOException("Failed to load " + path + " from " + base, e);
-            }
-            finally
-            {
-                Closeables.close(source, true);
+                throw new IOException("Failed to load " + path + " from " + base1, e);
             }
         }
 
-        Program resolveIncludedProgram(Location currentPath, String importPath) throws IOException {
-File resolved = findFirstExisting(importPath, currentPath);
-if (resolved == null) {
-throw new AssertionError("Included thrift file not found: " + importPath);
-}
-try {
-return getAndCheck(resolved.getCanonicalPath());
-} catch (IOException e) {
-throw new IOException("Failed to get canonical path for file " + resolved.getAbsolutePath(), e);
-}
-}
+        Program resolveIncludedProgram(Location currentPath, String importPath)
+        {
+            FileInfo resolved = findFirstExisting(importPath, currentPath);
+            if (resolved == null)
+            {
+                throw new Exception("Included thrift file not found: " + importPath);
+            }
+            try
+            {
+                var canonicalPath = Path.GetFullPath(resolved.FullName);
+
+                return getAndCheck(canonicalPath);
+            }
+            catch (IOException e)
+            {
+                throw new IOException("Failed to get canonical path for file " + resolved.FullName, e);
+            }
+        }
 
 /**
  * Resolves a relative path to the first existing match.
@@ -249,43 +255,56 @@ throw new IOException("Failed to get canonical path for file " + resolved.getAbs
  * @param currentLocation the current working directory.
  * @return the first matching file on the search path, or {@code null}.
  */
-private FileInfo findFirstExisting(String path, @Nullable  Location currentLocation) {
-if (isAbsolutePath(path)) {
+        private FileInfo findFirstExisting(string path, Location currentLocation)
+        {
+            if (isAbsolutePath(path))
+            {
 // absolute path, should be loaded as-is
-File f = new File(path);
-return f.exists() ? f : null;
-}
+                File f = new File(path);
+                return f.exists() ? f : null;
+            }
 
-if (currentLocation != null) {
-File maybeFile = new File(currentLocation.base(), path).getAbsoluteFile();
-if (maybeFile.exists()) {
-return maybeFile;
-}
-}
+            if (currentLocation != null)
+            {
+                File maybeFile = new File(currentLocation.
+                base(),
+                path).
+                getAbsoluteFile();
+                if (maybeFile.exists())
+                {
+                    return maybeFile;
+                }
+            }
 
-for (File includePath : includePaths) {
-File maybeFile = new File(includePath, path).getAbsoluteFile();
-if (maybeFile.exists()) {
-return maybeFile;
-}
-}
+            for (File includePath :
+            includePaths)
+            {
+                File maybeFile = new File(includePath, path).getAbsoluteFile();
+                if (maybeFile.exists())
+                {
+                    return maybeFile;
+                }
+            }
 
-return null;
-}
+            return null;
+        }
 
-private Program getAndCheck(String absolutePath) {
-Program p = loadedPrograms.get(absolutePath);
-if (p == null) {
-throw new AssertionError("All includes should have been resolved by now: " + absolutePath);
-}
-return p;
-}
+        private Program getAndCheck(String absolutePath)
+        {
+            Program p = loadedPrograms.get(absolutePath);
+            if (p == null)
+            {
+                throw new AssertionError("All includes should have been resolved by now: " + absolutePath);
+            }
+            return p;
+        }
 
 /**
  * Checks if the path is absolute in an attempted cross-platform manner.
  */
-private static boolean isAbsolutePath(String path) {
-return ABSOLUTE_PATH_PATTERN.matcher(path).matches();
-}
-}
+        private static boolean isAbsolutePath(String path)
+        {
+            return ABSOLUTE_PATH_PATTERN.matcher(path).matches();
+        }
+    }
 }
