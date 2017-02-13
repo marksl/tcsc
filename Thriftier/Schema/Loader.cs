@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using Thriftier.Schema.Parser;
 
-
 namespace Thriftier.Schema
 {
     public class Loader
@@ -260,27 +259,28 @@ namespace Thriftier.Schema
             if (isAbsolutePath(path))
             {
 // absolute path, should be loaded as-is
-                File f = new File(path);
-                return f.exists() ? f : null;
+                FileInfo f = new FileInfo(path);
+                return f.Exists ? f : null;
             }
 
             if (currentLocation != null)
             {
-                File maybeFile = new File(currentLocation.
-                base(),
-                path).
-                getAbsoluteFile();
-                if (maybeFile.exists())
+                var fullPath = Path.Combine(currentLocation.Base, path);
+                fullPath = Path.GetFullPath(fullPath);
+                FileInfo maybeFile = new FileInfo(fullPath);
+                if (maybeFile.Exists)
                 {
                     return maybeFile;
                 }
             }
 
-            for (File includePath :
-            includePaths)
+            foreach (string includePath in includePaths)
             {
-                File maybeFile = new File(includePath, path).getAbsoluteFile();
-                if (maybeFile.exists())
+                var fullPath = Path.Combine(includePath, path);
+                fullPath = Path.GetFullPath(fullPath);
+
+                FileInfo maybeFile = new FileInfo(fullPath);
+                if (maybeFile.Exists)
                 {
                     return maybeFile;
                 }
@@ -291,10 +291,10 @@ namespace Thriftier.Schema
 
         private Program getAndCheck(String absolutePath)
         {
-            Program p = loadedPrograms.get(absolutePath);
+            Program p = loadedPrograms[absolutePath];
             if (p == null)
             {
-                throw new AssertionError("All includes should have been resolved by now: " + absolutePath);
+                throw new Exception("All includes should have been resolved by now: " + absolutePath);
             }
             return p;
         }
@@ -302,9 +302,9 @@ namespace Thriftier.Schema
 /**
  * Checks if the path is absolute in an attempted cross-platform manner.
  */
-        private static boolean isAbsolutePath(String path)
+        private static bool isAbsolutePath(String path)
         {
-            return ABSOLUTE_PATH_PATTERN.matcher(path).matches();
+            return ABSOLUTE_PATH_PATTERN.IsMatch(path);
         }
     }
 }
